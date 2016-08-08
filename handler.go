@@ -104,26 +104,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		// Replace ssh_url
 		log.Println("mirror", h.mirrorUrlPrefix)
 		if h.mirrorUrlPrefix != "" {
-			json, replaceErr := hookType.ReplaceSshUri(req, h.mirrorUrlPrefix)
+			replacedSshUrl, replaceErr := hookType.ReplaceSshUri(req, h.mirrorUrlPrefix)
 			if replaceErr != nil {
 				log.Println(replaceErr.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 
-			form := url.Values{}
-			form.Add("payload", json)
-			newReq, requestBuildErr := http.NewRequest("POST", h.remoteUrl, strings.NewReader(form.Encode()))
+			qs := url.Values{}
+			qs.Add("url", replacedSshUrl)
+			newReq, requestBuildErr := http.NewRequest("GET", h.remoteUrl+qs.Encode(), nil)
 			if requestBuildErr != nil {
 				log.Println(replaceErr.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			newReq.Header = req.Header
-			log.Println("Host is", req.Host)
-			newReq.Header.Set("Host", req.Host)
-			newReq.Host = req.Host
 
 			client := &http.Client{}
 			resp, err := client.Do(newReq)

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bitly/go-simplejson"
+	simplejson "github.com/bitly/go-simplejson"
 )
 
 // gitHubHookPayload reflects the parts of the GitHub
@@ -48,12 +48,8 @@ func (h GitHubFormHook) ReplaceSshUri(req *http.Request, urlPrefix string) (stri
 
 	log.Println("replace", string(replacedSshUrl))
 	json.Get("repository").Set("ssh_url", replacedSshUrl)
-	resultJsonData, err := json.Encode()
-	if err != nil {
-		return "", err
-	}
 
-	return string(resultJsonData), err
+	return replacedSshUrl, err
 }
 
 // A GitHubFormHook contains push info in JSON
