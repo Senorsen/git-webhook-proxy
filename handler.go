@@ -113,7 +113,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 			qs := url.Values{}
 			qs.Add("url", replacedSshUrl)
-			newReq, requestBuildErr := http.NewRequest("GET", h.remoteUrl+qs.Encode(), nil)
+			newReq, requestBuildErr := http.NewRequest("GET", h.remoteUrl+"?"+qs.Encode(), nil)
 			if requestBuildErr != nil {
 				log.Println(replaceErr.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
