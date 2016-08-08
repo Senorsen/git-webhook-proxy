@@ -36,3 +36,7 @@ func (h BitbucketHook) GetGitRepoUri(req *http.Request) (string, error) {
 
 	return getSshUriForUrl(repoHttpUrl)
 }
+
+func (h BitbucketHook) ReplaceSshUri(req *http.Request, urlPrefix string) (string, error) {
+	return "", nil
+}

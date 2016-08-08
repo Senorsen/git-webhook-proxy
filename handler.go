@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/orrc/git-webhook-proxy/hooks"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -13,17 +12,20 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/orrc/git-webhook-proxy/hooks"
 )
 
 type Handler struct {
-	gitPath       string
-	mirrorRootDir string
-	remoteUrl     string
-	proxy         http.Handler
-	requests      map[string]*sync.Mutex
+	gitPath         string
+	mirrorRootDir   string
+	mirrorUrlPrefix string
+	remoteUrl       string
+	proxy           http.Handler
+	requests        map[string]*sync.Mutex
 }
 
-func NewHandler(gitPath, mirrorRootDir, remoteUrl string) (h *Handler, err error) {
+func NewHandler(gitPath, mirrorRootDir, mirrorUrlPrefix, remoteUrl string) (h *Handler, err error) {
 	backendUrl, err := url.Parse(remoteUrl)
 	proxy := httputil.NewSingleHostReverseProxy(backendUrl)
 
@@ -35,11 +37,12 @@ func NewHandler(gitPath, mirrorRootDir, remoteUrl string) (h *Handler, err error
 	}
 
 	h = &Handler{
-		gitPath:       gitPath,
-		mirrorRootDir: mirrorRootDir,
-		remoteUrl:     remoteUrl,
-		proxy:         proxy,
-		requests:      make(map[string]*sync.Mutex),
+		gitPath:         gitPath,
+		mirrorRootDir:   mirrorRootDir,
+		mirrorUrlPrefix: mirrorUrlPrefix,
+		remoteUrl:       remoteUrl,
+		proxy:           proxy,
+		requests:        make(map[string]*sync.Mutex),
 	}
 	return
 }
@@ -98,7 +101,42 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if h.remoteUrl != "" {
 		// Proxy the original webhook request to the backend
 		log.Printf("Proxying webhook request to %s/%s\n", h.remoteUrl, req.URL)
-		h.proxy.ServeHTTP(w, req)
+		// Replace ssh_url
+		log.Println("mirror", h.mirrorUrlPrefix)
+		if h.mirrorUrlPrefix != "" {
+			json, replaceErr := hookType.ReplaceSshUri(req, h.mirrorUrlPrefix)
+			if replaceErr != nil {
+				log.Println(replaceErr.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			form := url.Values{}
+			form.Add("payload", json)
+			newReq, requestBuildErr := http.NewRequest("POST", h.remoteUrl, strings.NewReader(form.Encode()))
+			if requestBuildErr != nil {
+				log.Println(replaceErr.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			newReq.Header = req.Header
+			log.Println("Host is", req.Host)
+			newReq.Header.Set("Host", req.Host)
+			newReq.Host = req.Host
+
+			client := &http.Client{}
+			resp, err := client.Do(newReq)
+			if err != nil {
+				log.Fatalln("http mirror with replace", err.Error())
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			log.Println(resp.Status)
+
+		} else {
+			h.proxy.ServeHTTP(w, req)
+		}
 	}
 }
 
@@ -167,7 +205,6 @@ func getDirNameForRepo(repoUri string) string {
 	repoUri = strings.TrimSpace(repoUri)
 	repoUri = strings.TrimSuffix(repoUri, "/")
 	repoUri = strings.TrimSuffix(repoUri, ".git")
-	repoUri = strings.ToLower(repoUri)
 
 	if strings.Contains(repoUri, "://") {
 		uri, _ := url.Parse(repoUri)

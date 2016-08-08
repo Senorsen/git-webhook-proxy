@@ -14,6 +14,7 @@ import (
 type Webhook interface {
 	// GetGitRepoUri determines the Git repository URI a webhook refers to
 	GetGitRepoUri(*http.Request) (string, error)
+	ReplaceSshUri(req *http.Request, urlPrefix string) (string, error)
 }
 
 // bodyHolder is a type implementing io.ReadCloser,

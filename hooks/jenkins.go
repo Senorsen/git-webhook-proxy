@@ -15,3 +15,7 @@ func (h JenkinsHook) GetGitRepoUri(req *http.Request) (string, error) {
 	}
 	return params.Get("url"), nil
 }
+
+func (h JenkinsHook) ReplaceSshUri(req *http.Request, urlPrefix string) (string, error) {
+	return "", nil
+}
