@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/orrc/git-webhook-proxy/hooks"
+	"github.com/Senorsen/git-webhook-proxy/hooks"
 )
 
 type Handler struct {
